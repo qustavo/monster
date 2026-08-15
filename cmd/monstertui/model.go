@@ -632,6 +632,9 @@ func renderSidebar(o *mostro.Order, width, height int) string {
 	reputation := section("REPUTATION", longReputationText(o))
 
 	lines := []string{summary, rule, paymentMethods, "", orderID, "", reputation}
+	if strings.HasPrefix(o.Source, "https://") {
+		lines = append(lines, "", section("SOURCE", o.Source+" (enter to open in your browser)"))
+	}
 	return style.Render(strings.Join(lines, "\n"))
 }
 
