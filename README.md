@@ -14,6 +14,8 @@ Two binaries:
   client for it: buy/sell tabs (order-book convention — see below), a filterable table,
   and a detail sidebar.
 
+![monstertui](docs/screenshot.png)
+
 ## Quick start
 
 The simplest way to run the client — no separate daemon needed:
