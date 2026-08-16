@@ -6,12 +6,11 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net/http"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 
-	"github.com/qustavo/monster/internal/api"
 	"github.com/qustavo/monster/internal/daemon"
 	"github.com/qustavo/monster/internal/store/sqlite"
 )
@@ -32,19 +31,16 @@ func main() {
 	}
 	defer db.Close()
 
+	listener, err := net.Listen("tcp", *addrFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	hub := api.NewHub()
-	mux := api.NewMux(db, hub)
-	go func() {
-		log.Printf("API listening on %s", *addrFlag)
-		if err := http.ListenAndServe(*addrFlag, mux); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	if err := daemon.Run(ctx, relays, db, hub); err != nil {
+	log.Printf("API listening on %s", *addrFlag)
+	if err := daemon.Bootstrap(ctx, relays, db, listener); err != nil {
 		log.Fatal(err)
 	}
 }

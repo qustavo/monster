@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 
-	"github.com/qustavo/monster/internal/api"
 	"github.com/qustavo/monster/internal/daemon"
 	"github.com/qustavo/monster/internal/store/sqlite"
 )
@@ -30,18 +28,9 @@ func autostart(ctx context.Context, relays []string) (apiBase string, err error)
 		return "", fmt.Errorf("autostart: listen: %w", err)
 	}
 
-	hub := api.NewHub()
-	mux := api.NewMux(db, hub)
-
 	go func() {
-		if err := http.Serve(listener, mux); err != nil && ctx.Err() == nil {
-			log.Printf("autostart: http server: %v", err)
-		}
-	}()
-
-	go func() {
-		if err := daemon.Run(ctx, relays, db, hub); err != nil && ctx.Err() == nil {
-			log.Printf("autostart: relay ingestion: %v", err)
+		if err := daemon.Bootstrap(ctx, relays, db, listener); err != nil && ctx.Err() == nil {
+			log.Printf("autostart: %v", err)
 		}
 	}()
 

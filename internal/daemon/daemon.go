@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
+	"net/http"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -19,6 +21,26 @@ import (
 // FirstRunBackfill bounds how far back to fetch order history when the
 // store is empty, instead of replaying the relay's entire backlog.
 const FirstRunBackfill = 48 * time.Hour
+
+// Bootstrap wires the HTTP/SSE API and relay ingestion around db,
+// serving on listener, and blocks until ctx is canceled or ingestion
+// ends — the shared setup between monsterd and monstertui's embedded
+// autostart server, which differ only in how they open db and where
+// listener comes from. HTTP server errors are logged, not fatal: once
+// ingestion is running, a broken HTTP listener shouldn't tear down the
+// relay subscription.
+func Bootstrap(ctx context.Context, relays []string, db store.Store, listener net.Listener) error {
+	hub := api.NewHub()
+	mux := api.NewMux(db, hub)
+
+	go func() {
+		if err := http.Serve(listener, mux); err != nil && ctx.Err() == nil {
+			log.Printf("http server: %v", err)
+		}
+	}()
+
+	return Run(ctx, relays, db, hub)
+}
 
 // Run connects to relays, ingests Mostro order events into db, and
 // broadcasts changes on hub. It blocks until ctx is canceled or the
