@@ -91,6 +91,36 @@ func TestCountsRespectsActiveFilter(t *testing.T) {
 	}
 }
 
+// TestScrollbarThumbTracksProportionally guards the specific failure
+// this function had before switching to rounded float math: truncating
+// integer division rounds toward 0 for the whole scroll range (not just
+// near the ends, where it happens to land on an exact division anyway),
+// so the thumb always trails behind where it should proportionally be
+// instead of tracking it symmetrically.
+func TestScrollbarThumbTracksProportionally(t *testing.T) {
+	const visible, total = 20, 143
+	maxOffset := total - visible
+
+	for _, frac := range []float64{0.1, 0.25, 0.5, 0.75, 0.9} {
+		offset := int(float64(maxOffset) * frac)
+		start, length := scrollbarThumb(visible, total, offset)
+		want := float64(offset) * float64(visible-length) / float64(maxOffset)
+		if diff := float64(start) - want; diff < -0.6 || diff > 0.6 {
+			t.Errorf("scrollbarThumb at %.0f%% (offset=%d): start = %d, want ~%.1f (off by more than rounding tolerance)",
+				frac*100, offset, start, want)
+		}
+	}
+}
+
+// TestScrollbarThumbFillsTrackWhenEverythingFits guards against a
+// spurious partial thumb when there's nothing to scroll.
+func TestScrollbarThumbFillsTrackWhenEverythingFits(t *testing.T) {
+	start, length := scrollbarThumb(10, 7, 0)
+	if start != 0 || length != 10 {
+		t.Errorf("scrollbarThumb(10, 7, 0) = (%d, %d), want (0, 10)", start, length)
+	}
+}
+
 func TestComputeWidthsNeverOverflows(t *testing.T) {
 	rows := []*mostro.Order{
 		{

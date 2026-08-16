@@ -75,6 +75,12 @@ const (
 	// define that column's max width.
 	emojiWidthMargin = 2
 
+	// " " + one thumb/track cell, reserved unconditionally (even when
+	// the list fits without scrolling) so the table's other column
+	// widths don't jitter as the row count crosses the scrolling
+	// threshold — e.g. while typing into the filter box.
+	scrollbarWidth = 2
+
 	sidebarWidth  = 36
 	// Terminal width below which the sidebar is dropped. Six real
 	// columns (icon+type pill+premium+reputation+node+created) need
@@ -567,9 +573,9 @@ func (m model) View() string {
 	}
 
 	showSidebar := width >= sidebarMinTot
-	listWidth := width
+	listWidth := width - scrollbarWidth
 	if showSidebar {
-		listWidth = width - sidebarWidth - 1
+		listWidth -= sidebarWidth + 1
 	}
 
 	rows := m.filteredRows()
@@ -601,6 +607,7 @@ func (m model) View() string {
 		lines = append(lines, row, separator)
 	}
 	list := strings.Join(lines, "\n")
+	scrollbar := renderScrollbar(visible, len(rows), m.offset)
 
 	// target is the full body height available (reserving the filter
 	// bar + status bar lines) — used both to size the sidebar and, below,
@@ -609,14 +616,11 @@ func (m model) View() string {
 	// list would shrink the sidebar down with it instead of filling the
 	// terminal.
 	target := m.height - 2
-	sidebarHeight := lipgloss.Height(list)
-	if target > sidebarHeight {
-		sidebarHeight = target
-	}
+	sidebarHeight := max(lipgloss.Height(list), lipgloss.Height(scrollbar), target)
 
-	body := list
+	body := lipgloss.JoinHorizontal(lipgloss.Top, list, scrollbar)
 	if showSidebar {
-		body = lipgloss.JoinHorizontal(lipgloss.Top, list, renderSidebar(selected, sidebarWidth, sidebarHeight))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, body, renderSidebar(selected, sidebarWidth, sidebarHeight))
 	}
 
 	// Pad up to the full terminal height so the filter/status bars stay
@@ -629,6 +633,50 @@ func (m model) View() string {
 	}
 
 	return body + "\n" + m.renderFilterBar() + "\n" + m.renderStatusBar()
+}
+
+// scrollbarThumb computes the thumb's (start, length) in track-cell units
+// for a track visible cells tall, proportional to how offset sits within
+// [0, total-visible]. Uses rounded float math rather than integer
+// division: truncating division rounds toward 0 across the whole scroll
+// range (division only happens to land exactly at the very ends), so
+// the thumb would consistently trail behind its true proportional
+// position instead of tracking it symmetrically.
+func scrollbarThumb(visible, total, offset int) (start, length int) {
+	if total <= visible {
+		return 0, visible
+	}
+	length = max(1, int(math.Round(float64(visible*visible)/float64(total))))
+	maxOffset := total - visible
+	start = int(math.Round(float64(offset*(visible-length)) / float64(maxOffset)))
+	return start, length
+}
+
+// renderScrollbar builds a one-column vertical scroll indicator matching
+// the row list's height: a faint track with a highlighted thumb showing
+// where the current viewport (visible rows starting at offset) sits
+// within the full total. Thumb size and position are proportional to
+// the track, not a literal 1:1 map of which rows are on screen. A
+// leading blank line aligns it with the tab bar above the list.
+func renderScrollbar(visible, total, offset int) string {
+	trackChar := separatorStyle.Render(" │")
+	thumbChar := lipgloss.NewStyle().Foreground(colorPillBg).Render(" ┃")
+
+	thumbStart, thumbLen := scrollbarThumb(visible, total, offset)
+
+	lines := make([]string, 0, 1+visible*rowHeight)
+	lines = append(lines, "  ") // blank line aligning with the tab bar
+	for i := range visible {
+		ch := trackChar
+		if i >= thumbStart && i < thumbStart+thumbLen {
+			ch = thumbChar
+		}
+		for range rowHeight {
+			lines = append(lines, ch)
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // renderTabs renders the "All (N)  Buy (N)  Sell (N)" tab bar, with the
