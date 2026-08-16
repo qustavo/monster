@@ -58,6 +58,10 @@ const (
 	rowSpacing       = 1
 	rowHeight        = rowContentHeight + rowSpacing
 
+	// Rows moved per mouse wheel notch — one row per notch feels too
+	// slow for a long order book.
+	mouseScrollStep = 3
+
 	// 2 (⚡/🔗 measure as double-width glyphs) + padding(0,1). A
 	// single-width content area silently wraps these to the cell's
 	// second line instead of clipping — verified against real lipgloss
@@ -329,6 +333,17 @@ func (m model) grandCounts() (total, buy, sell int) {
 	return total, buy, sell
 }
 
+// moveCursor shifts the cursor by delta rows, clamped to the current
+// filtered view (0 when there's nothing to select).
+func (m *model) moveCursor(delta int) {
+	n := len(m.filteredRows())
+	if n == 0 {
+		m.cursor = 0
+		return
+	}
+	m.cursor = min(max(m.cursor+delta, 0), n-1)
+}
+
 func (m *model) clampScroll() {
 	visible := visibleRowCount(m.height)
 	rows := len(m.filteredRows())
@@ -376,13 +391,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.filtering = true
 			return m, m.filterInput.Focus()
 		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
+			m.moveCursor(-1)
 		case "down", "j":
-			if m.cursor < len(m.filteredRows())-1 {
-				m.cursor++
-			}
+			m.moveCursor(1)
 		case "right", "l", "tab":
 			m.activeTab = (m.activeTab + 1) % 3
 			m.cursor, m.offset = 0, 0
@@ -402,6 +413,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, openBrowserCmd(src)
 				}
 			}
+		}
+
+	case tea.MouseMsg:
+		switch msg.Type {
+		case tea.MouseWheelUp:
+			m.moveCursor(-mouseScrollStep)
+		case tea.MouseWheelDown:
+			m.moveCursor(mouseScrollStep)
 		}
 
 	case ordersLoadedMsg:

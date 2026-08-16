@@ -84,7 +84,7 @@ fill them). Each row still honestly labels its own side with a `buying`/`selling
 
 | Key | Action |
 |---|---|
-| `↑`/`k`, `↓`/`j` | move selection |
+| `↑`/`k`, `↓`/`j`, mouse wheel | move selection |
 | `←`/`h`, `→`/`l`, `tab` | switch tabs |
 | `1` / `2` / `3` | jump to See All / Buy / Sell |
 | `/` | open the filter box |

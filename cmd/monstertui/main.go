@@ -36,7 +36,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(newModel(apiBase, *filterFlag), tea.WithAltScreen())
+	p := tea.NewProgram(newModel(apiBase, *filterFlag), tea.WithAltScreen(), tea.WithMouseCellMotion())
 
 	go run(ctx, p, apiBase)
 

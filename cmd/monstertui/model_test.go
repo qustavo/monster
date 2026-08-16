@@ -121,6 +121,40 @@ func TestScrollbarThumbFillsTrackWhenEverythingFits(t *testing.T) {
 	}
 }
 
+// TestMoveCursorClamps guards the shared cursor-movement helper used by
+// both keyboard nav and mouse wheel scrolling: it must clamp to the
+// filtered view's bounds in both directions, and not panic on an empty
+// list.
+func TestMoveCursorClamps(t *testing.T) {
+	m := newModel("", "")
+	m.rows = []*mostro.Order{
+		{ID: "1", Type: mostro.OrderTypeBuy},
+		{ID: "2", Type: mostro.OrderTypeBuy},
+		{ID: "3", Type: mostro.OrderTypeBuy},
+	}
+
+	m.moveCursor(-5)
+	if m.cursor != 0 {
+		t.Errorf("moveCursor(-5) from 0 = %d, want 0 (clamped)", m.cursor)
+	}
+
+	m.moveCursor(5)
+	if m.cursor != 2 {
+		t.Errorf("moveCursor(5) = %d, want 2 (clamped to last row)", m.cursor)
+	}
+
+	m.moveCursor(-1)
+	if m.cursor != 1 {
+		t.Errorf("moveCursor(-1) from 2 = %d, want 1", m.cursor)
+	}
+
+	m.rows = nil
+	m.moveCursor(3)
+	if m.cursor != 0 {
+		t.Errorf("moveCursor on empty list = %d, want 0", m.cursor)
+	}
+}
+
 func TestComputeWidthsNeverOverflows(t *testing.T) {
 	rows := []*mostro.Order{
 		{
