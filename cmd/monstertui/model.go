@@ -185,7 +185,7 @@ func (m model) filteredRows() []*mostro.Order {
 type filterQuery struct {
 	currencies []string
 	payments   []string
-	node       string
+	nodeTerms  []string
 }
 
 func parseFilterQuery(raw string) filterQuery {
@@ -202,21 +202,14 @@ func parseFilterQuery(raw string) filterQuery {
 		case strings.HasPrefix(low, "payment:"):
 			q.payments = append(q.payments, splitFilterValues(low[len("payment:"):])...)
 		case strings.HasPrefix(low, "node:"):
-			q.node = appendTerm(q.node, low[len("node:"):])
+			q.nodeTerms = append(q.nodeTerms, low[len("node:"):])
 		case strings.HasPrefix(low, "instance:"):
-			q.node = appendTerm(q.node, low[len("instance:"):])
+			q.nodeTerms = append(q.nodeTerms, low[len("instance:"):])
 		default:
-			q.node = appendTerm(q.node, low)
+			q.nodeTerms = append(q.nodeTerms, low)
 		}
 	}
 	return q
-}
-
-func appendTerm(existing, next string) string {
-	if existing == "" {
-		return next
-	}
-	return existing + " " + next
 }
 
 func splitFilterValues(s string) []string {
@@ -231,7 +224,7 @@ func splitFilterValues(s string) []string {
 }
 
 func (q filterQuery) empty() bool {
-	return len(q.currencies) == 0 && len(q.payments) == 0 && q.node == ""
+	return len(q.currencies) == 0 && len(q.payments) == 0 && len(q.nodeTerms) == 0
 }
 
 // matches reports whether o satisfies every facet present in q. Each
@@ -256,8 +249,13 @@ func (q filterQuery) matches(o *mostro.Order) bool {
 			return false
 		}
 	}
-	if q.node != "" && !strings.Contains(strings.ToLower(nodeLabel(o)), q.node) {
-		return false
+	if len(q.nodeTerms) > 0 {
+		label := strings.ToLower(nodeLabel(o))
+		for _, term := range q.nodeTerms {
+			if !strings.Contains(label, term) {
+				return false
+			}
+		}
 	}
 	return true
 }
