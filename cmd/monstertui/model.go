@@ -287,13 +287,18 @@ func anyContains(values []string, s string) bool {
 	return false
 }
 
-// counts returns (total, buy, sell) across all pending orders,
-// independent of the active tab. buy/sell are how many orders would
-// appear under each tab — i.e. inverted from order.Type, matching
-// filteredRows's order-book convention (Buy tab = sell-type orders).
+// counts returns (total, buy, sell) across pending orders matching the
+// active text filter, independent of the active tab. buy/sell are how
+// many orders would appear under each tab — i.e. inverted from
+// order.Type, matching filteredRows's order-book convention (Buy tab =
+// sell-type orders).
 func (m model) counts() (total, buy, sell int) {
-	total = len(m.rows)
+	query := parseFilterQuery(m.filterInput.Value())
 	for _, o := range m.rows {
+		if !query.matches(o) {
+			continue
+		}
+		total++
 		if o.Type == mostro.OrderTypeSell {
 			buy++
 		} else if o.Type == mostro.OrderTypeBuy {

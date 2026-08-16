@@ -63,6 +63,28 @@ func TestOrderFreeTextIsSanitizedEverywhere(t *testing.T) {
 // otherwise force the row wider than its budget. Below 63 cols, six real
 // columns don't fit even at their structural floors and title
 // legitimately collapses to 0; that's expected degradation, not overflow.
+// TestCountsRespectsActiveFilter guards against counts() reading m.rows
+// directly instead of applying the active text filter: the tab bar's
+// "See All (N) Buy (N) Sell (N)" counts must match what filteredRows
+// would actually show for each tab, not the unfiltered totals.
+func TestCountsRespectsActiveFilter(t *testing.T) {
+	m := newModel("", "")
+	m.rows = []*mostro.Order{
+		{ID: "1", Type: mostro.OrderTypeBuy, NodeName: "alice"},
+		{ID: "2", Type: mostro.OrderTypeSell, NodeName: "alice"},
+		{ID: "3", Type: mostro.OrderTypeSell, NodeName: "bob"},
+	}
+
+	if total, buy, sell := m.counts(); total != 3 || buy != 2 || sell != 1 {
+		t.Fatalf("counts() with no filter = (%d,%d,%d), want (3,2,1)", total, buy, sell)
+	}
+
+	m.filterInput.SetValue("alice")
+	if total, buy, sell := m.counts(); total != 2 || buy != 1 || sell != 1 {
+		t.Errorf("counts() with filter %q = (%d,%d,%d), want (2,1,1)", "alice", total, buy, sell)
+	}
+}
+
 func TestComputeWidthsNeverOverflows(t *testing.T) {
 	rows := []*mostro.Order{
 		{
