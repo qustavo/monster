@@ -99,7 +99,7 @@ type Order struct {
 	Geohash        string
 	Bond           string
 
-	Raw *nostr.Event
+	Raw *nostr.Event `json:"-"`
 }
 
 // ParseOrder decodes a kind-38383 event into an Order. It returns an

@@ -1,6 +1,8 @@
 package mostro
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -41,6 +43,29 @@ func TestParseOrderMalformedNumericTagsFail(t *testing.T) {
 				t.Errorf("ParseOrder with %v: expected error, got nil", tt.tag)
 			}
 		})
+	}
+}
+
+// TestOrderJSONOmitsRawEvent guards against leaking the full signed
+// Nostr event (including its signature) into every API response —
+// Raw exists only for internal use, never for serving over HTTP.
+func TestOrderJSONOmitsRawEvent(t *testing.T) {
+	ev := baseOrderEvent()
+	ev.Sig = "distinctive-signature-value"
+	o, err := ParseOrder(ev)
+	if err != nil {
+		t.Fatalf("ParseOrder: %v", err)
+	}
+
+	b, err := json.Marshal(o)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if strings.Contains(string(b), "distinctive-signature-value") {
+		t.Errorf("Order JSON leaked the raw event's signature: %s", b)
+	}
+	if strings.Contains(string(b), `"Raw"`) {
+		t.Errorf("Order JSON has a Raw field: %s", b)
 	}
 }
 
