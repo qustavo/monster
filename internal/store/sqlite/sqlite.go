@@ -151,7 +151,7 @@ func (s *DB) CreateOrder(ctx context.Context, o *mostro.Order) (created bool, er
 func (s *DB) UpdateOrderStatus(ctx context.Context, id string, status mostro.OrderStatus, updatedAt int64) error {
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE orders SET status = ?, updated_at = ?
-		WHERE id = ? AND updated_at <= ?`,
+		WHERE id = ? AND updated_at < ?`,
 		string(status), updatedAt, id, updatedAt,
 	)
 	if err != nil {
