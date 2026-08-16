@@ -841,12 +841,18 @@ func renderTitleCell(o *mostro.Order, selected bool, width int) string {
 // background partway through. Every piece here is rendered
 // independently and concatenated.
 func renderTypeCell(o *mostro.Order, selected bool, width int) string {
+	return renderCenteredPillCell(typePill(o.Type), selected, width)
+}
+
+// renderCenteredPillCell centers a pre-rendered pill (see renderPill)
+// horizontally within a two-line cell — line 1 carries the pill, line 2
+// is blank filler so the cell matches the row's other 2-line-tall cells.
+func renderCenteredPillCell(pill string, selected bool, width int) string {
 	bg := lipgloss.NewStyle()
 	if selected {
 		bg = bg.Background(colorSelectedBg)
 	}
 
-	pill := typePill(o.Type)
 	leftPad := max((width-lipgloss.Width(pill))/2, 0)
 	rightPad := max(width-leftPad-lipgloss.Width(pill), 0)
 	line1 := bg.Render(strings.Repeat(" ", leftPad)) + pill + bg.Render(strings.Repeat(" ", rightPad))
@@ -916,18 +922,7 @@ func renderPremiumCell(o *mostro.Order, selected bool, width int) string {
 // background always, so it's built independently and never nested
 // inside another Style.Render call.
 func renderReputationCell(o *mostro.Order, selected bool, width int) string {
-	bg := lipgloss.NewStyle()
-	if selected {
-		bg = bg.Background(colorSelectedBg)
-	}
-
-	pill := renderPill(formatReputation(o), colorReputationBg)
-	leftPad := max((width-lipgloss.Width(pill))/2, 0)
-	rightPad := max(width-leftPad-lipgloss.Width(pill), 0)
-	line1 := bg.Render(strings.Repeat(" ", leftPad)) + pill + bg.Render(strings.Repeat(" ", rightPad))
-	line2 := bg.Render(strings.Repeat(" ", width))
-
-	return line1 + "\n" + line2
+	return renderCenteredPillCell(renderPill(formatReputation(o), colorReputationBg), selected, width)
 }
 
 // renderNodeCell renders the publishing node's identity (see nodeLabel).
