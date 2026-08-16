@@ -25,8 +25,8 @@ go run ./cmd/monstertui
 ```
 
 With no `-endpoint` flag, `monstertui` starts its own embedded `monsterd` in-process
-(in-memory database, random local port) and connects to that. Good for just looking at
-the order book; nothing persists across runs.
+(random local port, `orders.db` in the working directory — the same default file and
+format `monsterd` itself uses) and connects to that.
 
 To run them separately (e.g. so the order history persists, or multiple clients share one
 daemon):
