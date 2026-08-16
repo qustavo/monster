@@ -63,11 +63,29 @@ const (
 	// second line instead of clipping — verified against real lipgloss
 	// rendering, not assumed.
 	iconColWidth = 4
-	minTitleWid  = 20
+	nodeMaxWid   = 24
+	nodeMinWid   = 8
 	defaultWidth = 80
 
+	// Cells whose content includes emoji (the reputation pill's
+	// ⭐💬🗓️) reserve this many extra columns beyond Go's own width
+	// count: real terminals don't always agree with Go's width tables
+	// on exactly how wide a given emoji renders, and an undercount
+	// clips the cell's trailing character on whichever row happens to
+	// define that column's max width.
+	emojiWidthMargin = 2
+
 	sidebarWidth  = 36
-	sidebarMinTot = 70 // terminal width below which the sidebar is dropped
+	// Terminal width below which the sidebar is dropped. Six real
+	// columns (icon+type pill+premium+reputation+node+created) need
+	// ~61 cols even with node at its floor — a well-reviewed order's
+	// reputation pill (3-digit reviews/days is unremarkable, not an
+	// edge case) can't be truncated the way node names can — plus a
+	// usable title floor of ~15 and the sidebar's own width+gap. Below
+	// this, showing the sidebar starves the table instead of the
+	// reverse. Verified empirically: computeWidths still overflows its
+	// budget below this width even with node fully shrunk.
+	sidebarMinTot = 116
 )
 
 type (
@@ -421,13 +439,36 @@ func computeWidths(width int, rows []*mostro.Order) colWidths {
 		}
 	}
 	premium += 2
+	reputation += emojiWidthMargin
 	node += 2
+	if node > nodeMaxWid {
+		node = nodeMaxWid
+	}
 	created += 2
 
-	title := width - typeCol - iconColWidth - premium - reputation - node - created
-	if title < minTitleWid {
-		title = minTitleWid
+	fixed := typeCol + iconColWidth + premium + reputation + node + created
+
+	// If the non-title columns don't leave room for even a 1-wide
+	// title, shrink node further (down to its floor) before letting
+	// title collapse — node is already truncated with an ellipsis when
+	// rendered, so it's the most graceful column to compress under
+	// real width pressure. The -1 reserves that minimum title column;
+	// without it, shrinking node to exactly fit `fixed` still leaves
+	// title's own max(...,1) floor pushing the total 1 over width.
+	if over := fixed - (width - 1); over > 0 && node > nodeMinWid {
+		shrink := min(over, node-nodeMinWid)
+		node -= shrink
+		fixed -= shrink
 	}
+
+	// The row must never render wider than the space allocated for it;
+	// title gets whatever's left. On terminals too narrow to fit the
+	// other six columns even at their floors (reputation in particular
+	// can't be shrunk below the pill's own content), title collapses to
+	// 0 rather than forcing an overflow — renderTitleCell degrades
+	// gracefully at width 0.
+	title := max(width-fixed, 0)
+
 	return colWidths{typeCol: typeCol, icon: iconColWidth, title: title, premium: premium, reputation: reputation, node: node, created: created}
 }
 
@@ -446,12 +487,48 @@ func formatReputation(o *mostro.Order) string {
 // own y-tag instance label, and finally to an abbreviated pubkey.
 func nodeLabel(o *mostro.Order) string {
 	if o.NodeName != "" {
-		return o.NodeName
+		return sanitizeTableText(o.NodeName)
 	}
 	if l := instanceLabel(o); l != "" {
-		return l
+		return sanitizeTableText(l)
 	}
 	return shortKey(o.NodePubkey)
+}
+
+// formatPaymentMethods joins an order's payment methods for the table's
+// title-cell meta line, sanitized (see sanitizeTableText).
+func formatPaymentMethods(o *mostro.Order) string {
+	return sanitizeTableText(strings.Join(o.PaymentMethods, ", "))
+}
+
+// sanitizeTableText strips symbols/emoji/pictographs from node names and
+// payment methods before they enter the table's column-width math — both
+// are free text set by the order's maker on the Mostro network and can
+// contain characters (colored-circle bullets, dingbats, flag sequences)
+// whose terminal-rendered width doesn't match what Go's width tables
+// report. That mismatch throws off computeWidths' column budget and the
+// row's real on-screen alignment, which showed up as rows visually
+// bleeding into their neighbors. ASCII, Latin/Cyrillic/Greek letters
+// (accented payment-method names are common), and CJK/Kana/Hangul (which
+// terminals and Go agree are unambiguously double-width) are kept; the
+// rest is dropped rather than guessed at.
+func sanitizeTableText(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r < 0x2000:
+			b.WriteRune(r)
+		case r >= 0x0370 && r <= 0x1FFF: // Greek, Cyrillic, and other alphabetic scripts
+			b.WriteRune(r)
+		case r >= 0x3040 && r <= 0x30FF, // Hiragana, Katakana
+			r >= 0x4E00 && r <= 0x9FFF, // CJK Unified Ideographs
+			r >= 0xAC00 && r <= 0xD7A3: // Hangul syllables
+			b.WriteRune(r)
+		default:
+			b.WriteRune(' ')
+		}
+	}
+	return strings.TrimSpace(strings.Join(strings.Fields(b.String()), " "))
 }
 
 // instanceLabel is the best available name for the platform that
@@ -625,7 +702,7 @@ func renderSidebar(o *mostro.Order, width, height int) string {
 		return sectionLabel.Render(title) + "\n" + sectionValue.Render(body)
 	}
 
-	paymentMethods := section("PAYMENT METHODS", strings.Join(o.PaymentMethods, ", "))
+	paymentMethods := section("PAYMENT METHODS", formatPaymentMethods(o))
 	orderID := section("ORDER ID", o.ID)
 	reputation := section("REPUTATION", longReputationText(o))
 
@@ -686,7 +763,7 @@ func renderSummary(o *mostro.Order) string {
 		verb, formatAmount(o), currencyLabel(o.FiatCode), marketPriceClause(o.Premium))
 
 	if len(o.PaymentMethods) > 0 {
-		s += ", via " + strings.Join(o.PaymentMethods, ", ")
+		s += ", via " + formatPaymentMethods(o)
 	}
 	if n := nodeLabel(o); n != "" {
 		s += ", on " + n
@@ -743,7 +820,7 @@ func renderTitleCell(o *mostro.Order, selected bool, width int) string {
 	contentWidth := max(width-2, 1)
 
 	headline := ansi.Truncate(fmt.Sprintf("%s %s", formatAmount(o), currencyLabel(o.FiatCode)), contentWidth, "…")
-	meta := ansi.Truncate(strings.Join(o.PaymentMethods, ", "), contentWidth, "…")
+	meta := ansi.Truncate(formatPaymentMethods(o), contentWidth, "…")
 
 	headlineStyle := lipgloss.NewStyle().Bold(true).Foreground(colorPrimaryText).
 		Padding(0, 1).Width(width).Height(1)
