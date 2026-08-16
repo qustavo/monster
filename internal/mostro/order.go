@@ -4,6 +4,7 @@ package mostro
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -129,7 +130,11 @@ func ParseOrder(ev *nostr.Event) (*Order, error) {
 		case "s":
 			o.Status = OrderStatus(val)
 		case "amt":
-			fmt.Sscanf(val, "%d", &o.AmountSats)
+			n, err := strconv.ParseInt(val, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("mostro: order event %s has malformed \"amt\" tag %q: %w", ev.ID, val, err)
+			}
+			o.AmountSats = n
 		case "fa":
 			if len(tag) >= 3 {
 				o.MinAmount = tag[1]
@@ -142,7 +147,11 @@ func ParseOrder(ev *nostr.Event) (*Order, error) {
 		case "premium":
 			o.Premium = val
 		case "expires_at":
-			fmt.Sscanf(val, "%d", &o.ExpiresAt)
+			n, err := strconv.ParseInt(val, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("mostro: order event %s has malformed \"expires_at\" tag %q: %w", ev.ID, val, err)
+			}
+			o.ExpiresAt = n
 		case "y":
 			o.Platform = val
 			if len(tag) >= 3 {
