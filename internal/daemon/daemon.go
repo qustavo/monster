@@ -22,6 +22,10 @@ import (
 // store is empty, instead of replaying the relay's entire backlog.
 const FirstRunBackfill = 48 * time.Hour
 
+// DefaultRelays is the comma-separated relay list monsterd and
+// monstertui's autostart both default to when -relays isn't given.
+const DefaultRelays = "wss://mostro-p2p.tech,wss://nos.lol,wss://relay.mostro.network"
+
 // Bootstrap wires the HTTP/SSE API and relay ingestion around db,
 // serving on listener, and blocks until ctx is canceled or ingestion
 // ends — the shared setup between monsterd and monstertui's embedded

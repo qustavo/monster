@@ -16,9 +16,7 @@ import (
 )
 
 func main() {
-	relayFlag := flag.String("relays",
-		"wss://mostro-p2p.tech,wss://nos.lol,wss://relay.mostro.network",
-		"comma-separated relay URLs")
+	relayFlag := flag.String("relays", daemon.DefaultRelays, "comma-separated relay URLs")
 	dbFlag := flag.String("db", "orders.db", "path to sqlite database")
 	addrFlag := flag.String("addr", ":8080", "HTTP API listen address")
 	flag.Parse()

@@ -11,13 +11,14 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/qustavo/monster/internal/daemon"
 )
 
 func main() {
 	endpointFlag := flag.String("endpoint", "",
 		"monsterd API base URL (e.g. http://localhost:8080); if empty, monstertui starts its own embedded server on a random port")
-	relaysFlag := flag.String("relays",
-		"wss://mostro-p2p.tech,wss://nos.lol,wss://relay.mostro.network",
+	relaysFlag := flag.String("relays", daemon.DefaultRelays,
 		"comma-separated relay URLs, used only when -endpoint is not set")
 	filterFlag := flag.String("filter", "", `initial filter query, e.g. "cur:usd,eur pm:zelle"`)
 	flag.Parse()
