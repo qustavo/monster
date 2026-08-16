@@ -58,9 +58,8 @@ const (
 	rowSpacing       = 1
 	rowHeight        = rowContentHeight + rowSpacing
 
-	// Rows moved per mouse wheel notch — one row per notch feels too
-	// slow for a long order book.
-	mouseScrollStep = 3
+	// Rows moved per mouse wheel notch.
+	mouseScrollStep = 1
 
 	// 2 (⚡/🔗 measure as double-width glyphs) + padding(0,1). A
 	// single-width content area silently wraps these to the cell's
