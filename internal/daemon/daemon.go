@@ -135,6 +135,18 @@ func save(ctx context.Context, db store.Store, hub *api.Hub, o *mostro.Order) er
 	if err != nil {
 		return err
 	}
-	hub.Publish(api.Event{Type: api.EventUpdated, Order: o})
+
+	// Broadcast the stored order, not o: o.CreatedAt is this update
+	// event's own timestamp (Nostr's created_at is always "when this
+	// event was signed"), while the stored row keeps the order's
+	// original creation time untouched — UpdateOrderStatus only bumps
+	// updated_at. Broadcasting o directly would make a routine status
+	// ping or republish look like a brand-new order to clients (wrong
+	// "X ago", wrong sort position).
+	stored, err := db.GetOrder(ctx, o.ID)
+	if err != nil {
+		return err
+	}
+	hub.Publish(api.Event{Type: api.EventUpdated, Order: stored})
 	return nil
 }
