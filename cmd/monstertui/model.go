@@ -308,6 +308,21 @@ func (m model) counts() (total, buy, sell int) {
 	return total, buy, sell
 }
 
+// grandCounts returns (total, buy, sell) across every pending order,
+// ignoring both the active tab and the text filter — the status bar's
+// grand totals, as opposed to counts()'s filtered tab-bar numbers.
+func (m model) grandCounts() (total, buy, sell int) {
+	total = len(m.rows)
+	for _, o := range m.rows {
+		if o.Type == mostro.OrderTypeSell {
+			buy++
+		} else if o.Type == mostro.OrderTypeBuy {
+			sell++
+		}
+	}
+	return total, buy, sell
+}
+
 func (m *model) clampScroll() {
 	visible := visibleRowCount(m.height)
 	rows := len(m.filteredRows())
@@ -664,7 +679,7 @@ func (m model) renderStatusBar() string {
 	}
 	dotStyle := lipgloss.NewStyle().Background(colorSelectedBg).Foreground(dotColor)
 
-	total, buy, sell := m.counts()
+	total, buy, sell := m.grandCounts()
 	left := statusBarStyle.Render(" ") + dotStyle.Render("●") +
 		statusBarStyle.Render(fmt.Sprintf("  Total %d · Buy %d · Sell %d", total, buy, sell))
 	right := statusBarStyle.Render(fmt.Sprintf("%s   ↑/↓ move · ←/→ tabs · / filter · enter open · q quit  ", m.status))

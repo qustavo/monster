@@ -83,6 +83,12 @@ func TestCountsRespectsActiveFilter(t *testing.T) {
 	if total, buy, sell := m.counts(); total != 2 || buy != 1 || sell != 1 {
 		t.Errorf("counts() with filter %q = (%d,%d,%d), want (2,1,1)", "alice", total, buy, sell)
 	}
+
+	// grandCounts (status bar) must stay unfiltered even while a filter
+	// is active — only counts() (tab bar) narrows.
+	if total, buy, sell := m.grandCounts(); total != 3 || buy != 2 || sell != 1 {
+		t.Errorf("grandCounts() with filter %q = (%d,%d,%d), want (3,2,1)", "alice", total, buy, sell)
+	}
 }
 
 func TestComputeWidthsNeverOverflows(t *testing.T) {
