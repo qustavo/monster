@@ -288,9 +288,8 @@ func anyContains(values []string, s string) bool {
 }
 
 // counts returns (total, buy, sell) across all pending orders,
-// independent of the active tab.
-// counts returns (total, buy, sell) where buy/sell are how many orders
-// would appear under each tab — i.e. inverted from order.Type, matching
+// independent of the active tab. buy/sell are how many orders would
+// appear under each tab — i.e. inverted from order.Type, matching
 // filteredRows's order-book convention (Buy tab = sell-type orders).
 func (m model) counts() (total, buy, sell int) {
 	total = len(m.rows)
